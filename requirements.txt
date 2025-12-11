@@ -1,1 +1,4 @@
 runpod
+faster-whisper
+numpy
+soundfile
