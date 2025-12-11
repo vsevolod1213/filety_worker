@@ -1,4 +1,12 @@
-runpod
+fastapi
+uvicorn[standard]
+python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+PyJWT
+slowapi
+
 faster-whisper
-numpy
-soundfile
+httpx
+boto3
+runpod
