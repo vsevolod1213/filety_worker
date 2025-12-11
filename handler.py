@@ -1,6 +1,5 @@
 import runpod
 import boto3
-import base64
 import os
 import tempfile
 
@@ -38,7 +37,7 @@ def handler(job):
         }
     
     try:
-        temp_path = download_from_s3(s3_config, filename)
+        temp_path = download_from_s3(s3_config, object_key)
 
         size_bytes = os.path.getsize(temp_path)
         os.remove(temp_path)
