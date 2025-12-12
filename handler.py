@@ -10,62 +10,55 @@ S3_ACCESS_SECRET = os.getenv("S3_ACCESS_SECRET")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL")
 
-if not all([S3_ACCESS_ID, S3_ACCESS_SECRET, S3_BUCKET_NAME, S3_ENDPOINT_URL]):
-    raise RuntimeError("Missing S3 env vars: S3_ACCESS_ID/S3_ACCESS_SECRET/S3_BUCKET_NAME/S3_ENDPOINT_URL")
-
 s3 = boto3.client(
     "s3",
     aws_access_key_id=S3_ACCESS_ID,
     aws_secret_access_key=S3_ACCESS_SECRET,
     endpoint_url=S3_ENDPOINT_URL,
-    region_name="eu-ro-1"
-
 )
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODEL_NAME = "openai/whisper-large-v2"
+MODEL = wisper.load_model("openai/whisper-large-v2", device=DEVICE)
 
-model = wisper.load_model(MODEL_NAME, device=DEVICE)
-
-def download_from_s3(s3_config: dict, object_key: str) -> str:
-    fd, temp_path = tempfile.mkstemp(prefix="filety", suffix="_audio")
+def download_from_s3(s3_config, object_key):
+    fd, temp_path = tempfile.mkstemp(prefix="filety_", suffix=".audio")
     os.close(fd)
 
-    s3.download_file(S3_BUCKET_NAME, object_key, temp_path)
+    s3client = boto3.client(
+        "s3",
+        aws_access_key_id=s3_config["accessId"],
+        aws_secret_access_key=s3_config["accessSecret"],
+        endpoint_url=s3_config["endpointUrl"],
+    )
+
+    s3client.download_file(s3_config["bucketName"], object_key, temp_path)
     return temp_path
 
-
 def handler(job):
+    _input = job["input"]
+    s3_config = job["s3Config"]
 
-    _input = job.get("input") or {}
-    task_id = _input.get("task_id")
     object_key = _input.get("s3_object_key")
+    task_id = _input.get("task_id")
 
     if not object_key:
-        return {"status": "error", "task_id": task_id, "error": "Missing s3_object_key"}
+        return {"status": "error", "error": "missing object_key"}
+
+    temp_path = None
 
     try:
-        temp_path = download_from_s3(object_key)
-        size_bytes = os.path.getsize(temp_path)
-        
-        result = model.transcribe(temp_path)
+        temp_path = download_from_s3(s3_config, object_key)
 
-        text = result.get("text", "").strip()
+        result = MODEL.transcribe(temp_path)
+        text = result["text"].strip()
 
         return {
             "status": "success",
             "task_id": task_id,
-            "s3_object_key": object_key,
-            "file_size_bytes": size_bytes,
-            "text": text, 
-            "message": "Audio downloaded from S3 successfully.",
+            "text": text,
         }
-    except Exception as exc:
-        return {"status": "error", "task_id": task_id, "error": str(exc)}
+    except Exception as e:
+        return {"status": "error", "task_id": task_id, "error": str(e)}
     finally:
         if temp_path and os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except OSError:
-                pass
-
-runpod.serverless.start({"handler" : handler})
+            os.remove(temp_path)
