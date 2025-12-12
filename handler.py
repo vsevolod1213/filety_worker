@@ -2,6 +2,8 @@ import runpod
 import boto3
 import os
 import tempfile
+import wisper
+import torch
 
 S3_ACCESS_ID = os.getenv("S3_ACCESS_ID")
 S3_ACCESS_SECRET = os.getenv("S3_ACCESS_SECRET")
@@ -19,7 +21,10 @@ s3 = boto3.client(
     region_name="eu-ro-1"
 
 )
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+MODEL_NAME = "openai/whisper-large-v2"
 
+model = wisper.load_model(MODEL_NAME, device=DEVICE)
 
 def download_from_s3(s3_config: dict, object_key: str) -> str:
     fd, temp_path = tempfile.mkstemp(prefix="filety", suffix="_audio")
@@ -41,16 +46,26 @@ def handler(job):
     try:
         temp_path = download_from_s3(object_key)
         size_bytes = os.path.getsize(temp_path)
-        os.remove(temp_path)
+        
+        result = model.transcribe(temp_path)
+
+        text = result.get("text", "").strip()
 
         return {
             "status": "success",
             "task_id": task_id,
             "s3_object_key": object_key,
             "file_size_bytes": size_bytes,
+            "text": text, 
             "message": "Audio downloaded from S3 successfully.",
         }
     except Exception as exc:
         return {"status": "error", "task_id": task_id, "error": str(exc)}
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
 
 runpod.serverless.start({"handler" : handler})
