@@ -1,3 +1,17 @@
+print("========== HANDLER BOOT ==========", flush=True)
+
+import sys, os
+
+print("PYTHON VERSION:", sys.version, flush=True)
+print("WORKDIR:", os.getcwd(), flush=True)
+print("FILES:", os.listdir("."), flush=True)
+
+print("ENV S3_ACCESS_ID:", bool(os.getenv("S3_ACCESS_ID")), flush=True)
+print("ENV S3_BUCKET_NAME:", os.getenv("S3_BUCKET_NAME"), flush=True)
+print("ENV S3_ENDPOINT_URL:", os.getenv("S3_ENDPOINT_URL"), flush=True)
+
+print("========== IMPORTS START ==========", flush=True)
+
 import runpod
 import boto3
 import os
