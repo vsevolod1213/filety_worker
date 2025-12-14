@@ -5,6 +5,8 @@ import tempfile
 from faster_whisper import WhisperModel
 import torch
 
+print("HANDLER BOOT: starting import phase", flush=True)
+
 S3_ACCESS_ID = os.getenv("S3_ACCESS_ID")
 S3_ACCESS_SECRET = os.getenv("S3_ACCESS_SECRET")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
