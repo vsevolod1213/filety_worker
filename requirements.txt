@@ -8,5 +8,9 @@ slowapi
 
 faster-whisper
 httpx
-boto3
 runpod
+
+
+faster-whisper==1.0.3
+torch
+boto3

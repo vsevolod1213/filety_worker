@@ -2,7 +2,7 @@ import runpod
 import boto3
 import os
 import tempfile
-import wisper
+from faster_whisper import WhisperModel
 import torch
 
 S3_ACCESS_ID = os.getenv("S3_ACCESS_ID")
@@ -10,47 +10,61 @@ S3_ACCESS_SECRET = os.getenv("S3_ACCESS_SECRET")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL")
 
-s3 = boto3.client(
-    "s3",
-    aws_access_key_id=S3_ACCESS_ID, 
-    aws_secret_access_key=S3_ACCESS_SECRET,
-    endpoint_url=S3_ENDPOINT_URL,
-)
-
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODEL = wisper.load_model("openai/whisper-large-v2", device=DEVICE)
+MODELS: dict[str, WhisperModel] = {}
 
-def download_from_s3(s3_config, object_key):
-    fd, temp_path = tempfile.mkstemp(prefix="filety_", suffix=".audio")
+def download_from_s3(object_key:str) -> str:
+    fd, temp_path = tempfile.mkstemp(prefix="filety_", suffix=".wav")
     os.close(fd)
+    
 
-    s3client = boto3.client(
+    s3 = boto3.client(
         "s3",
-        aws_access_key_id=s3_config["accessId"],
-        aws_secret_access_key=s3_config["accessSecret"],
-        endpoint_url=s3_config["endpointUrl"],
+        aws_access_key_id=S3_ACCESS_ID, 
+        aws_secret_access_key=S3_ACCESS_SECRET,
+        endpoint_url=S3_ENDPOINT_URL,
     )
 
-    s3client.download_file(s3_config["bucketName"], object_key, temp_path)
+    s3.download_file(S3_BUCKET_NAME, object_key, temp_path)
     return temp_path
 
-def handler(job):
-    _input = job["input"]
-    s3_config = job["s3Config"]
+def get_model(model_name: str) -> WhisperModel:
+    if model_name not in MODELS:
+        MODELS[model_name] = WhisperModel(
+            model_name, 
+            device=DEVICE,
+            compute_type="float16" if DEVICE == "cuda" else "float32"
+        )
+    return MODELS[model_name]
 
-    object_key = _input.get("s3_object_key")
+def handler(job):
+    _input = job.get("input", {})
     task_id = _input.get("task_id")
+    model_name = _input.get("model", "small")
+    object_key = _input.get("s3_object_key")
+
+    ALLOWED = {"small", "medium", "large-v2", "large-v3"}
+    if model_name not in ALLOWED:
+        return {"status": "error", "task_id": task_id, "error": f"invalid model: {model_name}"}
 
     if not object_key:
-        return {"status": "error", "error": "missing object_key"}
+        return {"status": "error", "task_id": task_id, "error": "missing s3_object_key"}
+    if not task_id:
+        return {"status": "error", "error": "missing task_id"}
 
     temp_path = None
 
     try:
-        temp_path = download_from_s3(s3_config, object_key)
+        temp_path = download_from_s3(object_key)
+        model = get_model(model_name)
 
-        result = MODEL.transcribe(temp_path)
-        text = result["text"].strip()
+        segments, info = model.transcribe(
+            temp_path, 
+            beam_size=5, 
+            vad_filter=True,
+        )
+
+        text = " ".join([segment.text for segment in segments])  
 
         return {
             "status": "success",
@@ -58,7 +72,12 @@ def handler(job):
             "text": text,
         }
     except Exception as e:
-        return {"status": "error", "task_id": task_id, "error": str(e)}
+        return {
+            "status": "error", 
+            "task_id": task_id, 
+            "error": str(e)
+        }
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+runpod.serverless.start({"handler": handler})
