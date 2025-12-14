@@ -6,7 +6,7 @@ passlib[bcrypt]
 PyJWT
 slowapi
 
-faster-whisper
+
 httpx
 runpod
 
