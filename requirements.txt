@@ -2,3 +2,4 @@ runpod
 boto3
 httpx
 faster-whisper==1.0.3
+ctranslate2==4.4.0

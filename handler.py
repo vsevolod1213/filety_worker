@@ -17,7 +17,7 @@ import boto3
 import os
 import tempfile
 from faster_whisper import WhisperModel
-import torch
+import ctranslate2
 
 print("HANDLER BOOT: starting import phase", flush=True)
 
@@ -26,7 +26,7 @@ S3_ACCESS_SECRET = os.environ["S3_ACCESS_SECRET"]
 S3_BUCKET_NAME = os.environ["S3_BUCKET_NAME"]
 S3_ENDPOINT_URL = os.environ["S3_ENDPOINT_URL"]
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda" if ctranslate2.get_device_count() > 0 else "cpu"
 MODELS: dict[str, WhisperModel] = {}
 
 def download_from_s3(object_key:str) -> str:
