@@ -36,9 +36,10 @@ def download_from_s3(object_key:str) -> str:
 
     s3 = boto3.client(
         "s3",
-        aws_access_key_id=S3_ACCESS_ID, 
+        aws_access_key_id=S3_ACCESS_ID,
         aws_secret_access_key=S3_ACCESS_SECRET,
         endpoint_url=S3_ENDPOINT_URL,
+        region_name="eu-ro-1"
     )
 
     s3.download_file(S3_BUCKET_NAME, object_key, temp_path)
