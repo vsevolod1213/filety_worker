@@ -21,10 +21,10 @@ import torch
 
 print("HANDLER BOOT: starting import phase", flush=True)
 
-S3_ACCESS_ID = os.getenv("S3_ACCESS_ID")
-S3_ACCESS_SECRET = os.getenv("S3_ACCESS_SECRET")
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL")
+S3_ACCESS_ID = os.environ["S3_ACCESS_ID"]
+S3_ACCESS_SECRET = os.environ["S3_ACCESS_SECRET"]
+S3_BUCKET_NAME = os.environ["S3_BUCKET_NAME"]
+S3_ENDPOINT_URL = os.environ["S3_ENDPOINT_URL"]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MODELS: dict[str, WhisperModel] = {}
