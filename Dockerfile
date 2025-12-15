@@ -1,4 +1,5 @@
-FROM runpod/pytorch:2.3.1-py3.10-cuda12.1.1
+FROM runpod/pytorch:2.1.0-py3.10-cuda12.1.1
+
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
