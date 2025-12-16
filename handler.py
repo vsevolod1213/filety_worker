@@ -1,7 +1,8 @@
+print("BUILD_TAG: 2025-12-16_ctranslate2_4_4_0_cudnn8", flush=True)
+
 print("========== HANDLER BOOT ==========", flush=True)
 
 import sys, os
-
 print("PYTHON VERSION:", sys.version, flush=True)
 print("WORKDIR:", os.getcwd(), flush=True)
 print("FILES:", os.listdir("."), flush=True)
@@ -12,12 +13,20 @@ print("ENV S3_ENDPOINT_URL:", os.getenv("S3_ENDPOINT_URL"), flush=True)
 
 print("========== IMPORTS START ==========", flush=True)
 
+print("DIAG: importing ctranslate2...", flush=True)
+import ctranslate2
+print("DIAG: ctranslate2 version:", ctranslate2.__version__, flush=True)
+print("DIAG: device count:", ctranslate2.get_device_count(), flush=True)
+
+print("DIAG: importing faster_whisper...", flush=True)
+from faster_whisper import WhisperModel
+print("DIAG: faster_whisper imported OK", flush=True)
+
+print("DIAG: LD_LIBRARY_PATH:", os.getenv("LD_LIBRARY_PATH"), flush=True)
+
 import runpod
 import boto3
-import os
 import tempfile
-from faster_whisper import WhisperModel
-import ctranslate2
 
 print("HANDLER BOOT: starting import phase", flush=True)
 
@@ -57,7 +66,8 @@ def get_model(model_name: str) -> WhisperModel:
 def handler(job):
     _input = job.get("input", {})
     task_id = _input.get("task_id")
-    model_name = _input.get("model", "small")
+    model_name = _input.get("model") or _input.get("model_name") or "small"
+
     object_key = _input.get("s3_object_key")
 
     ALLOWED = {"small", "medium", "large-v2", "large-v3"}
